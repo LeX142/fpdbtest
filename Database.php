@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace FpDbTest;
 
-use RuntimeException;
+use FpDbTest\Grammar\GrammarArray;
+use FpDbTest\Grammar\GrammarDbIdentifier;
+use FpDbTest\Grammar\GrammarDefault;
+use FpDbTest\Grammar\GrammarFloat;
+use FpDbTest\Grammar\GrammarInteger;
 use mysqli;
+use RuntimeException;
 
 class Database implements DatabaseInterface
 {
@@ -23,29 +28,43 @@ class Database implements DatabaseInterface
     {
         if (preg_match_all('/(\{.*?\})|(\?[adfb#]?)/', $query, $tokenizedData)) {
             foreach ($tokenizedData[0] as $key => $macro) {
-                if ($this->isConditionalBlock($macro)) {
-                    $conditionalBlockMacro = trim($macro, '{}');
-                    if (str_contains($conditionalBlockMacro, '{') || str_contains($conditionalBlockMacro, '}')) {
-                        throw new \RuntimeException('Conditional block cannot be nested.');
-                    }
-                    $macroValue = is_array($args[$key]) ? [...$args[$key]] : [$args[$key]];
-                    $macroValueFiltered = array_filter($macroValue, fn($v) => $this->skip() !== $v);
-                    $value = match (count($macroValue) === count($macroValueFiltered)) {
-                        true => $this->buildQuery($conditionalBlockMacro, $macroValue),
-                        false => ''
-                    };
+                $arg = $args[$key] ?? throw new RuntimeException('Invalid number of input arguments');
+                if (!$this->isConditionalBlock($macro)) {
+                    $value = $this->getBindingValueByType($macro, $arg);
                 } else {
-                    $value = $this->getBindingValueByType($macro, $args[$key]);
+                    $value = $this->prepareConditionalBlock($macro, $arg);
                 }
                 $query = substr_replace($query, (string)$value, strpos($query, $macro), strlen($macro));
             }
         }
+
         return $query;
     }
 
-    private function isConditionalBlock(string $block)
+    private function isConditionalBlock(string $block): bool
     {
         return str_starts_with($block, '{') && str_ends_with($block, '}');
+    }
+
+    private function checkBlockNested(string $conditionalBlock): void
+    {
+        if (str_contains($conditionalBlock, '{') || str_contains($conditionalBlock, '}')) {
+            throw new \RuntimeException('Conditional block cannot be nested.');
+        }
+    }
+
+    private function prepareConditionalBlock(string $block, mixed $arg): string
+    {
+        $conditionalBlock = trim($block, '{}');
+
+        $this->checkBlockNested($conditionalBlock);
+
+        $macroValue = is_array($arg) ? [...$arg] : [$arg];
+        $macroValueFiltered = array_filter($macroValue, fn($v) => $this->skip() !== $v);
+
+        return (count($macroValue) === count($macroValueFiltered)) ?
+            $this->buildQuery($conditionalBlock, $macroValue) :
+            '';
     }
 
     /**
@@ -75,7 +94,7 @@ class Database implements DatabaseInterface
     private function checkArrayMultidimensional(mixed $data): void
     {
         if (is_array($data) && count($data) !== count($data, COUNT_RECURSIVE)){
-            throw new RuntimeException();
+            throw new RuntimeException('Array value cannot be nested: ' . var_export($data, true));
         }
     }
 
@@ -121,18 +140,18 @@ class Database implements DatabaseInterface
         return sprintf('`%s`', $this->mysqli->real_escape_string($fieldName));
     }
 
-    private function getSqlFieldValue(mixed $fieldValue)
+    private function getSqlFieldValue(mixed $fieldValue): mixed
     {
         return match (true) {
             is_string($fieldValue) => sprintf("'%s'", $fieldValue),
-            is_null($fieldValue) => $this->skip(),
+            is_null($fieldValue) => 'NULL',
             default => $fieldValue
         };
     }
 
-    public function skip()
+    public function skip(): mixed
     {
-        return 'NULL';
+        return 'NULLABLE VALUE';
     }
 
 }
