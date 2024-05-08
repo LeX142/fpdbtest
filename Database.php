@@ -4,11 +4,6 @@ declare(strict_types=1);
 
 namespace FpDbTest;
 
-use FpDbTest\Grammar\GrammarArray;
-use FpDbTest\Grammar\GrammarDbIdentifier;
-use FpDbTest\Grammar\GrammarDefault;
-use FpDbTest\Grammar\GrammarFloat;
-use FpDbTest\Grammar\GrammarInteger;
 use mysqli;
 use RuntimeException;
 
