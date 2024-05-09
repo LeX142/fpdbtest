@@ -11,6 +11,7 @@ class GrammarFloatFactory extends AbstractGrammarFactory
             'integer' => $value,
             'double' => (float)$value,
             'string' => (float)$this->escapeString($value),
+            'NULL' => 'NULL',
             default => throw new \RuntimeException('Invalid argument type: ' . $value)
         };
     }

@@ -10,6 +10,7 @@ class GrammarIntegerFactory extends AbstractGrammarFactory
         return match (gettype($value)) {
             'integer' => $value,
             'boolean' => (int) $value,
+            'NULL' => 'NULL',
             default => throw new \RuntimeException('Invalid argument type: ' . $value)
         };
     }
