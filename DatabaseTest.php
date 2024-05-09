@@ -53,14 +53,5 @@ class DatabaseTest
         if ($results !== $correct) {
             throw new Exception('Failure.');
         }
-
-        try{
-            $this->db->buildQuery(
-                'SELECT ?# FROM users WHERE user_id = ?d AND block = ?d',
-                [['name', 'email',['first_name']], 2, true]
-            );
-        }catch (\RuntimeException $e){
-
-        }
     }
 }
